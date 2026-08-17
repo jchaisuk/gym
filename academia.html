@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academia — Treino</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #17181b;
+    --surface: #202226;
+    --surface-2: #2a2c31;
+    --line: #34363c;
+    --chalk: #eef0ea;
+    --chalk-dim: #9a9d a5;
+    --chalk-dim: #9a9da5;
+    --red: #e8432f;
+    --red-dim: #6b2018;
+    --brass: #c9a227;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--chalk);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding-bottom: 90px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 18px 40px; }
+
+  header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; }
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 44px;
+    letter-spacing: 1px;
+    margin: 0;
+    line-height: 0.9;
+    border-bottom: 4px solid var(--red);
+    padding-bottom: 4px;
+  }
+  .date { font-size: 12px; color: var(--chalk-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .tab {
+    aspect-ratio: 1 / 1;
+    border-radius: 50%;
+    border: 3px solid var(--line);
+    background: var(--surface);
+    color: var(--chalk-dim);
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tab.active {
+    border-color: var(--red);
+    background: radial-gradient(circle at 35% 30%, #ff5a42, var(--red) 60%);
+    color: #fff;
+    box-shadow: 0 0 0 4px rgba(232,67,47,0.15), 0 4px 14px rgba(232,67,47,0.35);
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+  .ex-name { font-weight: 700; font-size: 16px; }
+  .ex-meta { font-size: 12px; color: var(--chalk-dim); margin-top: 2px; font-family: 'JetBrains Mono', monospace; }
+  .del-btn {
+    background: none; border: none; color: var(--chalk-dim); cursor: pointer;
+    font-size: 16px; line-height: 1; padding: 4px;
+  }
+  .del-btn:hover { color: var(--red); }
+
+  .row2 { display: flex; align-items: center; gap: 14px; margin-top: 12px; flex-wrap: wrap; }
+  .weight-field { display: flex; align-items: center; gap: 6px; }
+  .weight-field label { font-size: 11px; color: var(--chalk-dim); text-transform: uppercase; }
+  .weight-field input {
+    width: 64px; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 6px; color: var(--chalk); padding: 6px 8px;
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+  }
+
+  .sets { display: flex; gap: 8px; margin-left: auto; }
+  .set-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 2px solid var(--line);
+    background: var(--surface-2);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--chalk-dim);
+    transition: all 0.12s ease;
+  }
+  .set-dot.done {
+    background: var(--red); border-color: var(--red); color: #fff;
+    box-shadow: 0 2px 8px rgba(232,67,47,0.4);
+  }
+
+  .empty { text-align: center; color: var(--chalk-dim); padding: 30px 10px; font-size: 14px; }
+
+  .add-form {
+    background: var(--surface); border: 1px dashed var(--line); border-radius: var(--radius);
+    padding: 14px; margin-bottom: 12px; display: none;
+  }
+  .add-form.open { display: block; }
+  .add-form .fields { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .add-form input {
+    width: 100%; background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 6px; color: var(--chalk); padding: 8px; font-size: 13px;
+    font-family: 'Inter', sans-serif;
+  }
+  .add-form input::placeholder { color: #6b6d74; }
+
+  button.primary, button.ghost {
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 13px;
+    border-radius: 8px; padding: 10px 16px; cursor: pointer; border: none;
+  }
+  button.primary { background: var(--red); color: #fff; }
+  button.primary:hover { background: #ff5a42; }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--chalk); width: 100%; }
+  button.ghost:hover { border-color: var(--chalk-dim); }
+
+  .add-toggle { width: 100%; margin-bottom: 14px; }
+
+  .finish {
+    width: 100%; margin-top: 6px; padding: 14px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px;
+    background: var(--brass); color: #1a1608;
+  }
+  .finish:hover { background: #ddb531; }
+
+  .last { font-family: 'JetBrains Mono', monospace; }
+
+  /* Rest timer bar */
+  .timer-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+    justify-content: center;
+  }
+  .timer-display {
+    font-family: 'JetBrains Mono', monospace; font-size: 22px; min-width: 68px; text-align: center;
+    color: var(--chalk);
+  }
+  .timer-bar button {
+    background: var(--surface-2); border: 1px solid var(--line); color: var(--chalk);
+    border-radius: 6px; padding: 8px 12px; font-size: 12px; cursor: pointer; font-weight: 600;
+  }
+  .timer-bar button.go { background: var(--red); border-color: var(--red); color: #fff; }
+  .timer-bar .presets { display: flex; gap: 6px; }
+
+  .toast {
+    position: fixed; top: 18px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: var(--brass); color: #1a1608; padding: 10px 18px; border-radius: 8px;
+    font-weight: 700; font-size: 13px; opacity: 0; transition: all 0.25s ease; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ACADEMIA</h1>
+    <div class="date" id="today"></div>
+  </header>
+
+  <div class="tabs" id="tabs"></div>
+
+  <div id="list"></div>
+
+  <div class="add-form" id="addForm">
+    <div class="fields">
+      <input id="fName" placeholder="Exercício">
+      <input id="fSets" type="number" placeholder="Séries" value="3">
+      <input id="fReps" type="number" placeholder="Reps" value="10">
+      <input id="fWeight" type="number" placeholder="Peso (kg)" value="0">
+    </div>
+    <button class="primary" onclick="addExercise()">Adicionar</button>
+    <button class="ghost" style="width:auto;margin-left:8px;border:none;" onclick="toggleForm(false)">Cancelar</button>
+  </div>
+
+  <button class="ghost add-toggle" onclick="toggleForm(true)">+ Adicionar exercício</button>
+  <button class="finish" onclick="finishSession()">FINALIZAR TREINO</button>
+</div>
+
+<div class="timer-bar">
+  <div class="timer-display" id="timerDisplay">01:30</div>
+  <div class="presets">
+    <button onclick="setTimer(60)">60s</button>
+    <button onclick="setTimer(90)">90s</button>
+    <button onclick="setTimer(120)">120s</button>
+  </div>
+  <button class="go" id="timerBtn" onclick="toggleTimer()">Iniciar</button>
+</div>
+
+<div class="toast" id="toast">Treino salvo</div>
+
+<script>
+// ---- storage abstraction: usa window.storage se disponível, senão localStorage ----
+const storage = {
+  async get(key) {
+    if (window.storage) {
+      try { const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; }
+      catch (e) { return null; }
+    }
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : null;
+  },
+  async set(key, value) {
+    if (window.storage) {
+      try { await window.storage.set(key, JSON.stringify(value)); return; }
+      catch (e) { return; }
+    }
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+};
+
+const DAYS = ['A', 'B', 'C', 'D'];
+let exercises = { A: [], B: [], C: [], D: [] };
+let checks = { A: {}, B: {}, C: {}, D: {} };
+let lastWeights = {};
+let currentDay = 'A';
+
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
+document.getElementById('today').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  DAYS.forEach(d => {
+    const btn = document.createElement('div');
+    btn.className = 'tab' + (d === currentDay ? ' active' : '');
+    btn.textContent = d;
+    btn.onclick = () => { currentDay = d; renderTabs(); renderList(); };
+    tabs.appendChild(btn);
+  });
+}
+
+function renderList() {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  const items = exercises[currentDay];
+  if (!items.length) {
+    list.innerHTML = '<div class="empty">Nenhum exercício no dia ' + currentDay + ' ainda.<br>Adicione o primeiro abaixo.</div>';
+    return;
+  }
+  items.forEach(ex => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const lw = lastWeights[ex.id];
+    const doneArr = checks[currentDay][ex.id] || Array(ex.sets).fill(false);
+    checks[currentDay][ex.id] = doneArr;
+
+    card.innerHTML = `
+      <div class="card-top">
+        <div>
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-meta">${ex.sets}x${ex.reps}${lw !== undefined ? ' · último: <span class="last">' + lw + 'kg</span>' : ''}</div>
+        </div>
+        <button class="del-btn" onclick="delExercise('${ex.id}')">✕</button>
+      </div>
+      <div class="row2">
+        <div class="weight-field">
+          <label>Peso</label>
+          <input type="number" value="${ex.weight}" onchange="updateWeight('${ex.id}', this.value)">
+        </div>
+        <div class="sets" id="sets-${ex.id}"></div>
+      </div>
+    `;
+    list.appendChild(card);
+
+    const setsWrap = card.querySelector(`#sets-${ex.id}`);
+    doneArr.forEach((done, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'set-dot' + (done ? ' done' : '');
+      dot.textContent = i + 1;
+      dot.onclick = () => {
+        doneArr[i] = !doneArr[i];
+        renderList();
+        persistChecks();
+      };
+      setsWrap.appendChild(dot);
+    });
+  });
+}
+
+function toggleForm(open) {
+  document.getElementById('addForm').classList.toggle('open', open);
+}
+
+async function addExercise() {
+  const name = document.getElementById('fName').value.trim();
+  const sets = parseInt(document.getElementById('fSets').value) || 3;
+  const reps = parseInt(document.getElementById('fReps').value) || 10;
+  const weight = parseFloat(document.getElementById('fWeight').value) || 0;
+  if (!name) return;
+  const id = uid();
+  exercises[currentDay].push({ id, name, sets, reps, weight });
+  checks[currentDay][id] = Array(sets).fill(false);
+  document.getElementById('fName').value = '';
+  toggleForm(false);
+  await persistExercises();
+  renderList();
+}
+
+async function delExercise(id) {
+  exercises[currentDay] = exercises[currentDay].filter(e => e.id !== id);
+  delete checks[currentDay][id];
+  await persistExercises();
+  await persistChecks();
+  renderList();
+}
+
+async function updateWeight(id, val) {
+  const ex = exercises[currentDay].find(e => e.id === id);
+  if (ex) ex.weight = parseFloat(val) || 0;
+  await persistExercises();
+}
+
+async function persistExercises() { await storage.set('exercises', exercises); }
+async function persistChecks() { await storage.set('checks', checks); }
+async function persistLastWeights() { await storage.set('lastWeights', lastWeights); }
+
+async function finishSession() {
+  const items = exercises[currentDay];
+  if (!items.length) return;
+  items.forEach(ex => { lastWeights[ex.id] = ex.weight; });
+  await persistLastWeights();
+
+  const history = (await storage.get('history')) || [];
+  history.push({
+    date: new Date().toISOString(),
+    day: currentDay,
+    exercises: items.map(ex => ({ name: ex.name, sets: ex.sets, reps: ex.reps, weight: ex.weight }))
+  });
+  await storage.set('history', history);
+
+  // reset checks for next session on this day
+  items.forEach(ex => { checks[currentDay][ex.id] = Array(ex.sets).fill(false); });
+  await persistChecks();
+  renderList();
+  showToast('Treino ' + currentDay + ' salvo');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+// ---- Rest timer ----
+let timerSeconds = 90;
+let timerRemaining = 90;
+let timerInterval = null;
+
+function formatTime(s) {
+  const m = Math.floor(s / 60).toString().padStart(2, '0');
+  const sec = (s % 60).toString().padStart(2, '0');
+  return m + ':' + sec;
+}
+function updateTimerDisplay() {
+  document.getElementById('timerDisplay').textContent = formatTime(timerRemaining);
+}
+function setTimer(s) {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerSeconds = s;
+  timerRemaining = s;
+  document.getElementById('timerBtn').textContent = 'Iniciar';
+  updateTimerDisplay();
+}
+function toggleTimer() {
+  const btn = document.getElementById('timerBtn');
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+    btn.textContent = 'Continuar';
+    return;
+  }
+  btn.textContent = 'Pausar';
+  timerInterval = setInterval(() => {
+    timerRemaining--;
+    updateTimerDisplay();
+    if (timerRemaining <= 0) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+      btn.textContent = 'Iniciar';
+      timerRemaining = timerSeconds;
+      updateTimerDisplay();
+      showToast('Descanso terminado');
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    }
+  }, 1000);
+}
+updateTimerDisplay();
+
+// ---- init ----
+(async function init() {
+  const savedEx = await storage.get('exercises');
+  const savedChecks = await storage.get('checks');
+  const savedLW = await storage.get('lastWeights');
+  if (savedEx) exercises = savedEx;
+  if (savedChecks) checks = savedChecks;
+  if (savedLW) lastWeights = savedLW;
+  renderTabs();
+  renderList();
+})();
+</script>
+</body>
+</html>
