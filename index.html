@@ -236,6 +236,7 @@
     <button onclick="setTimer(120)">120s</button>
   </div>
   <button class="go" id="timerBtn" onclick="toggleTimer()">Iniciar</button>
+  <button onclick="resetTimer()">Reset</button>
 </div>
 
 <div class="toast" id="toast">Treino salvo</div>
@@ -497,6 +498,13 @@ function toggleTimer() {
       if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
     }
   }, 1000);
+}
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerInterval = null;
+  timerRemaining = timerSeconds;
+  document.getElementById('timerBtn').textContent = 'Iniciar';
+  updateTimerDisplay();
 }
 updateTimerDisplay();
 
