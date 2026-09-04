@@ -159,6 +159,24 @@ button.ghost:hover { border-color: var(--chalk-dim); }
   font-weight: 700; font-size: 13px; opacity: 0; transition: all 0.25s ease; pointer-events: none;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.ex-name { cursor: pointer; }
+.ex-name:hover { color: var(--red); }
+.photo-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: none; align-items: center; justify-content: center; z-index: 50;
+  padding: 20px;
+}
+.photo-modal.open { display: flex; }
+.photo-modal .box {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  max-width: 480px; width: 100%; overflow: hidden;
+}
+.photo-modal img { width: 100%; display: block; }
+.photo-modal .no-photo {
+  padding: 40px 20px; text-align: center; color: var(--chalk-dim); font-size: 14px;
+}
+.photo-modal .cap { padding: 12px 16px; font-weight: 700; font-size: 14px; }
+.photo-modal .close-row { padding: 0 16px 16px; }
 </style>
 </head>
 <body>
@@ -222,6 +240,14 @@ button.ghost:hover { border-color: var(--chalk-dim); }
 
 <div class="toast" id="toast">Treino salvo</div>
 
+<div class="photo-modal" id="photoModal" onclick="if(event.target===this) closePhoto()">
+  <div class="box">
+    <div id="photoContent"></div>
+    <div class="cap" id="photoCap"></div>
+    <div class="close-row"><button class="ghost" onclick="closePhoto()">Fechar</button></div>
+  </div>
+</div>
+
 <script>
 // ---- storage abstraction: usa window.storage se disponível, senão localStorage ----
 const storage = {
@@ -243,6 +269,32 @@ const storage = {
 };
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
+
+// Mapa: nome exato do exercício -> caminho da foto (pasta images/ ao lado do index.html)
+const PHOTOS = {
+  'Back Extension (lombar)': 'images/back-extension.jpg',
+  'Dip Machine (tríceps/peito)': 'images/dip-machine.jpg',
+  'Lat Pull Down (puxada costas)': 'images/lat-pull-down.jpg',
+  'Tríceps na polia (mesma máquina do Lat Pull Down)': 'images/lat-pull-down.jpg',
+  'Rosca bíceps em pé (halter 22,5kg)': 'images/halter.jpg',
+  // 'Leg press 45°': 'images/leg-press.jpg', // adicionar quando tiver a foto
+};
+
+function openPhoto(name) {
+  const src = PHOTOS[name];
+  const content = document.getElementById('photoContent');
+  const cap = document.getElementById('photoCap');
+  cap.textContent = name;
+  if (src) {
+    content.innerHTML = `<img src="${src}" alt="${name}">`;
+  } else {
+    content.innerHTML = '<div class="no-photo">Ainda sem foto deste aparelho.</div>';
+  }
+  document.getElementById('photoModal').classList.add('open');
+}
+function closePhoto() {
+  document.getElementById('photoModal').classList.remove('open');
+}
 
 function buildDefaults() {
   const mk = (name, sets, reps, weight) => ({ id: uid(), name, sets, reps, weight });
@@ -290,7 +342,7 @@ function renderList() {
     card.innerHTML = `
       <div class="card-top">
         <div>
-          <div class="ex-name">${ex.name}</div>
+          <div class="ex-name" onclick="openPhoto('${ex.name.replace(/'/g, "\\'")}')">${ex.name}</div>
           <div class="ex-meta">${ex.sets}x${ex.reps}${lw !== undefined ? ' · último: <span class="last">' + lw + 'kg</span>' : ''}</div>
         </div>
         <button class="del-btn" onclick="delExercise('${ex.id}')">✕</button>
