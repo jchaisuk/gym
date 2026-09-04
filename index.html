@@ -270,14 +270,14 @@ const storage = {
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-// Mapa: nome exato do exercício -> caminho da foto (pasta images/ ao lado do index.html)
+// Mapa: nome exato do exercício -> caminho da foto (arquivo na raiz do repositório, ao lado do index.html)
 const PHOTOS = {
-  'Back Extension (lombar)': 'images/back-extension.jpg',
-  'Dip Machine (tríceps/peito)': 'images/dip-machine.jpg',
-  'Lat Pull Down (puxada costas)': 'images/lat-pull-down.jpg',
-  'Tríceps na polia (mesma máquina do Lat Pull Down)': 'images/lat-pull-down.jpg',
-  'Rosca bíceps em pé (halter 22,5kg)': 'images/halter.jpg',
-  // 'Leg press 45°': 'images/leg-press.jpg', // adicionar quando tiver a foto
+  'Back Extension (lombar)': 'back-extension.jpg',
+  'Dip Machine (tríceps/peito)': 'dip-machine.jpg',
+  'Lat Pull Down (puxada costas)': 'lat-pull-down.jpg',
+  'Tríceps na polia (mesma máquina do Lat Pull Down)': 'lat-pull-down.jpg',
+  'Rosca bíceps em pé (halter 22,5kg)': 'halter.jpg',
+  // 'Leg press 45°': 'leg-press.jpg', // adicionar quando tiver a foto
 };
 
 function openPhoto(name) {
