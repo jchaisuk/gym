@@ -431,6 +431,29 @@ async function fetchSessionsFromSheet() {
   }
 }
 
+async function fetchPlanFromSheet() {
+  try {
+    const res = await fetch(SHEET_URL + '?type=plan');
+    if (!res.ok) throw new Error('resposta não ok');
+    return await res.json(); // array de exercícios, ou null se nunca salvo
+  } catch (err) {
+    console.error('Falha ao buscar plano da planilha:', err);
+    return null;
+  }
+}
+
+async function sendPlanToSheet(list) {
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'plan', exercises: list })
+    });
+  } catch (err) {
+    console.error('Falha ao enviar plano pra planilha:', err);
+  }
+}
+
 function buildDefaults() {
   const mk = (name, sets, reps, weight) => ({ id: uid(), name, sets, reps, weight });
   return [
@@ -522,6 +545,7 @@ async function addExercise() {
   document.getElementById('fName').value = '';
   toggleForm(false);
   await persistExercises();
+  sendPlanToSheet(exercises); // sincroniza com outros aparelhos
   renderList();
 }
 
@@ -530,6 +554,7 @@ async function delExercise(id) {
   delete checks[id];
   await persistExercises();
   await persistChecks();
+  sendPlanToSheet(exercises); // sincroniza com outros aparelhos
   renderList();
 }
 
@@ -537,6 +562,7 @@ async function updateWeight(id, val) {
   const ex = exercises.find(e => e.id === id);
   if (ex) ex.weight = parseFloat(val) || 0;
   await persistExercises();
+  sendPlanToSheet(exercises); // sincroniza com outros aparelhos
 }
 
 async function persistExercises() { await storage.set('exercisesFlat', exercises); }
@@ -640,17 +666,26 @@ updateTimerDisplay();
 
 // ---- init ----
 (async function init() {
-  const savedEx = await storage.get('exercisesFlat');
   const savedChecks = await storage.get('checksFlat');
   const savedLW = await storage.get('lastWeightsFlat');
   const savedCardio = await storage.get('cardio');
 
-  if (savedEx && savedEx.length) {
-    exercises = savedEx;
+  // tenta buscar o plano (lista de exercícios + pesos) da planilha primeiro
+  const remotePlan = await fetchPlanFromSheet();
+  if (remotePlan && remotePlan.length) {
+    exercises = remotePlan;
+    await persistExercises(); // guarda cópia local como cache
   } else {
-    exercises = buildDefaults();
-    await persistExercises();
+    const savedEx = await storage.get('exercisesFlat');
+    if (savedEx && savedEx.length) {
+      exercises = savedEx;
+    } else {
+      exercises = buildDefaults();
+      await persistExercises();
+      sendPlanToSheet(exercises); // primeira vez: já popula a planilha
+    }
   }
+
   if (savedChecks) checks = savedChecks;
   if (savedLW) lastWeights = savedLW;
   if (savedCardio) cardio = savedCardio;
