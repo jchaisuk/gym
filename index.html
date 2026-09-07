@@ -177,6 +177,48 @@ button.ghost:hover { border-color: var(--chalk-dim); }
 }
 .photo-modal .cap { padding: 12px 16px; font-weight: 700; font-size: 14px; }
 .photo-modal .close-row { padding: 0 16px 16px; }
+.history-btn {
+  width: 100%; margin-bottom: 14px; background: transparent;
+  border: 1px solid var(--line); color: var(--chalk-dim);
+  border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.history-btn:hover { border-color: var(--chalk-dim); color: var(--chalk); }
+.history-modal {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: none; align-items: flex-start; justify-content: center; z-index: 60;
+  padding: 30px 16px;
+  overflow-y: auto;
+}
+.history-modal.open { display: flex; }
+.history-box {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  max-width: 560px; width: 100%; padding: 18px;
+}
+.history-box h2 {
+  font-family: 'Bebas Neue', sans-serif; font-size: 26px; margin: 0 0 14px; letter-spacing: 1px;
+}
+.hist-empty { color: var(--chalk-dim); font-size: 14px; text-align: center; padding: 30px 10px; }
+.hist-item {
+  border: 1px solid var(--line); border-radius: 8px; margin-bottom: 10px; overflow: hidden;
+}
+.hist-head {
+  padding: 12px 14px; display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; background: var(--surface-2);
+}
+.hist-date { font-weight: 700; font-size: 14px; text-transform: capitalize; }
+.hist-sub { font-size: 11px; color: var(--chalk-dim); margin-top: 2px; }
+.hist-arrow { color: var(--chalk-dim); transition: transform 0.15s ease; }
+.hist-item.open .hist-arrow { transform: rotate(180deg); }
+.hist-body { display: none; padding: 12px 14px; }
+.hist-item.open .hist-body { display: block; }
+.hist-ex-row {
+  display: flex; justify-content: space-between; font-size: 13px;
+  padding: 6px 0; border-bottom: 1px solid var(--line);
+}
+.hist-ex-row:last-child { border-bottom: none; }
+.hist-ex-name { color: var(--chalk); }
+.hist-ex-detail { color: var(--chalk-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+.hist-cardio { font-size: 12px; color: var(--teal); margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -225,6 +267,7 @@ button.ghost:hover { border-color: var(--chalk-dim); }
   </div>
 
   <button class="finish" onclick="finishSession()">FINALIZAR TREINO</button>
+  <button class="history-btn" onclick="openHistory()">📅 Ver histórico de treinos</button>
 </div>
 
 <div class="timer-bar">
@@ -245,6 +288,14 @@ button.ghost:hover { border-color: var(--chalk-dim); }
     <div id="photoContent"></div>
     <div class="cap" id="photoCap"></div>
     <div class="close-row"><button class="ghost" onclick="closePhoto()">Fechar</button></div>
+  </div>
+</div>
+
+<div class="history-modal" id="historyModal" onclick="if(event.target===this) closeHistory()">
+  <div class="history-box">
+    <h2>HISTÓRICO</h2>
+    <div id="historyList"></div>
+    <button class="ghost" onclick="closeHistory()">Fechar</button>
   </div>
 </div>
 
@@ -294,6 +345,53 @@ function openPhoto(name) {
 }
 function closePhoto() {
   document.getElementById('photoModal').classList.remove('open');
+}
+
+async function openHistory() {
+  const history = (await storage.get('historyFlat')) || [];
+  const container = document.getElementById('historyList');
+  container.innerHTML = '';
+  if (!history.length) {
+    container.innerHTML = '<div class="hist-empty">Nenhum treino finalizado ainda.</div>';
+  } else {
+    // mais recente primeiro
+    const ordered = [...history].reverse();
+    ordered.forEach((session, idx) => {
+      const d = new Date(session.date);
+      const dateStr = d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const totalSets = session.exercises.reduce((a, e) => a + e.setsCompleted, 0);
+      const totalPlanned = session.exercises.reduce((a, e) => a + e.sets, 0);
+
+      const item = document.createElement('div');
+      item.className = 'hist-item';
+      item.innerHTML = `
+        <div class="hist-head" onclick="this.parentElement.classList.toggle('open')">
+          <div>
+            <div class="hist-date">${dateStr}</div>
+            <div class="hist-sub">${timeStr} · ${totalSets}/${totalPlanned} séries completas</div>
+          </div>
+          <div class="hist-arrow">▾</div>
+        </div>
+        <div class="hist-body">
+          <div class="hist-cardio">
+            ${session.warmup ? '✓' : '✕'} Aquecimento (5 min) &nbsp;·&nbsp; ${session.cooldown ? '✓' : '✕'} Esteira final (30 min)
+          </div>
+          ${session.exercises.map(e => `
+            <div class="hist-ex-row">
+              <span class="hist-ex-name">${e.name}</span>
+              <span class="hist-ex-detail">${e.weight}kg · ${e.setsCompleted}/${e.sets}x${e.reps}</span>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(item);
+    });
+  }
+  document.getElementById('historyModal').classList.add('open');
+}
+function closeHistory() {
+  document.getElementById('historyModal').classList.remove('open');
 }
 
 function buildDefaults() {
