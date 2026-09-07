@@ -300,6 +300,9 @@ button.ghost:hover { border-color: var(--chalk-dim); }
 </div>
 
 <script>
+// URL do Web App do Google Apps Script (backend do histórico)
+const SHEET_URL = 'https://script.google.com/macros/s/AKfycbwSkbd9Bb0lMko9tnjrhaygjxfJ8wDjc5oin5V5505O4OKMrtH-HPCF-56Cbt5Tccp4Pw/exec';
+
 // ---- storage abstraction: usa window.storage se disponível, senão localStorage ----
 const storage = {
   async get(key) {
@@ -348,8 +351,16 @@ function closePhoto() {
 }
 
 async function openHistory() {
-  const history = (await storage.get('historyFlat')) || [];
   const container = document.getElementById('historyList');
+  container.innerHTML = '<div class="hist-empty">Carregando histórico...</div>';
+  document.getElementById('historyModal').classList.add('open');
+
+  let history = await fetchSessionsFromSheet();
+  if (history === null) {
+    // sem internet ou planilha indisponível: usa o backup local deste aparelho
+    history = (await storage.get('historyFlat')) || [];
+  }
+
   container.innerHTML = '';
   if (!history.length) {
     container.innerHTML = '<div class="hist-empty">Nenhum treino finalizado ainda.</div>';
@@ -392,6 +403,32 @@ async function openHistory() {
 }
 function closeHistory() {
   document.getElementById('historyModal').classList.remove('open');
+}
+
+// ---- Sincronização com Google Sheets ----
+async function sendSessionToSheet(session) {
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(session)
+    });
+    return true;
+  } catch (err) {
+    console.error('Falha ao enviar treino pra planilha:', err);
+    return false;
+  }
+}
+
+async function fetchSessionsFromSheet() {
+  try {
+    const res = await fetch(SHEET_URL);
+    if (!res.ok) throw new Error('resposta não ok');
+    return await res.json();
+  } catch (err) {
+    console.error('Falha ao buscar histórico da planilha:', err);
+    return null;
+  }
 }
 
 function buildDefaults() {
@@ -512,7 +549,7 @@ async function finishSession() {
   await persistLastWeights();
 
   const history = (await storage.get('historyFlat')) || [];
-  history.push({
+  const newSession = {
     date: new Date().toISOString(),
     warmup: !!cardio.warmup,
     cooldown: !!cardio.cooldown,
@@ -526,8 +563,10 @@ async function finishSession() {
         setsCompleted: doneArr.filter(Boolean).length
       };
     })
-  });
+  };
+  history.push(newSession);
   await storage.set('historyFlat', history);
+  sendSessionToSheet(newSession); // envia em segundo plano, não bloqueia a UI
 
   // reset checks e cardio para a próxima vez
   exercises.forEach(ex => { checks[ex.id] = Array(ex.sets).fill(false); });
