@@ -219,13 +219,57 @@ button.ghost:hover { border-color: var(--chalk-dim); }
 .hist-ex-name { color: var(--chalk); }
 .hist-ex-detail { color: var(--chalk-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 .hist-cardio { font-size: 12px; color: var(--teal); margin-bottom: 8px; }
+.user-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  padding: 20px;
+}
+.user-screen.hidden { display: none; }
+.user-box { max-width: 380px; width: 100%; text-align: center; }
+.user-box h1 {
+  font-family: 'Bebas Neue', sans-serif; font-size: 42px; letter-spacing: 1px;
+  border-bottom: 4px solid var(--red); padding-bottom: 8px; margin-bottom: 6px;
+}
+.user-box .sub { color: var(--chalk-dim); font-size: 13px; margin-bottom: 24px; }
+.user-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px; }
+.user-pick {
+  background: var(--surface); border: 1px solid var(--line); color: var(--chalk);
+  border-radius: 10px; padding: 14px; font-size: 16px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.user-pick:hover { border-color: var(--red); color: var(--red); }
+.user-new { display: flex; gap: 8px; }
+.user-new input {
+  flex: 1; background: var(--surface-2); border: 1px solid var(--line);
+  border-radius: 8px; color: var(--chalk); padding: 12px; font-size: 14px;
+}
+.switch-user-link {
+  background: none; border: none; color: var(--chalk-dim); font-size: 11px;
+  text-decoration: underline; cursor: pointer; padding: 0; margin-top: 4px;
+}
 </style>
 </head>
 <body>
+
+<div class="user-screen" id="userScreen">
+  <div class="user-box">
+    <h1>ACADEMIA</h1>
+    <div class="sub">Quem está treinando hoje?</div>
+    <div class="user-list" id="userList"></div>
+    <div class="user-new">
+      <input id="newUserName" placeholder="Outro nome...">
+      <button class="primary" onclick="submitNewUser()">Entrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap">
   <header>
     <h1>ACADEMIA</h1>
-    <div class="date" id="today"></div>
+    <div style="text-align:right;">
+      <div class="date" id="today"></div>
+      <button class="switch-user-link" onclick="switchUser()" id="currentUserLabel"></button>
+    </div>
   </header>
   <div class="split-note">Mesmo treino de força todos os dias, com esteira no aquecimento e no final.</div>
 
@@ -324,6 +368,65 @@ const storage = {
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
+// ---- Usuário atual ----
+let currentUser = localStorage.getItem('currentUser') || null;
+
+async function fetchUsersFromSheet() {
+  try {
+    const res = await fetch(SHEET_URL + '?type=users');
+    if (!res.ok) throw new Error('resposta não ok');
+    return await res.json();
+  } catch (err) {
+    console.error('Falha ao buscar usuários da planilha:', err);
+    return ['Daniel', 'Lais', 'Leandro', 'Paula']; // fallback offline
+  }
+}
+
+async function addUserToSheet(name) {
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'adduser', name })
+    });
+  } catch (err) {
+    console.error('Falha ao registrar novo usuário:', err);
+  }
+}
+
+async function showUserScreen() {
+  const users = await fetchUsersFromSheet();
+  const list = document.getElementById('userList');
+  list.innerHTML = '';
+  users.forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'user-pick';
+    btn.textContent = name;
+    btn.onclick = () => chooseUser(name);
+    list.appendChild(btn);
+  });
+  document.getElementById('userScreen').classList.remove('hidden');
+}
+
+async function submitNewUser() {
+  const name = document.getElementById('newUserName').value.trim();
+  if (!name) return;
+  await addUserToSheet(name);
+  await chooseUser(name);
+}
+
+async function chooseUser(name) {
+  currentUser = name;
+  localStorage.setItem('currentUser', name);
+  document.getElementById('userScreen').classList.add('hidden');
+  document.getElementById('currentUserLabel').textContent = 'Trocar usuário (' + name + ')';
+  await loadUserData();
+}
+
+function switchUser() {
+  showUserScreen();
+}
+
 // Mapa: nome exato do exercício -> caminho da foto (arquivo na raiz do repositório, ao lado do index.html)
 const PHOTOS = {
   'Back Extension (lombar)': 'back-extension.jpg',
@@ -354,11 +457,12 @@ async function openHistory() {
   const container = document.getElementById('historyList');
   container.innerHTML = '<div class="hist-empty">Carregando histórico...</div>';
   document.getElementById('historyModal').classList.add('open');
+  document.querySelector('.history-box h2').textContent = 'HISTÓRICO — ' + currentUser.toUpperCase();
 
   let history = await fetchSessionsFromSheet();
   if (history === null) {
     // sem internet ou planilha indisponível: usa o backup local deste aparelho
-    history = (await storage.get('historyFlat')) || [];
+    history = (await storage.get('historyFlat_' + currentUser)) || [];
   }
 
   container.innerHTML = '';
@@ -411,7 +515,7 @@ async function sendSessionToSheet(session) {
     await fetch(SHEET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(session)
+      body: JSON.stringify({ ...session, user: currentUser })
     });
     return true;
   } catch (err) {
@@ -422,7 +526,7 @@ async function sendSessionToSheet(session) {
 
 async function fetchSessionsFromSheet() {
   try {
-    const res = await fetch(SHEET_URL);
+    const res = await fetch(SHEET_URL + '?user=' + encodeURIComponent(currentUser));
     if (!res.ok) throw new Error('resposta não ok');
     return await res.json();
   } catch (err) {
@@ -433,7 +537,7 @@ async function fetchSessionsFromSheet() {
 
 async function fetchPlanFromSheet() {
   try {
-    const res = await fetch(SHEET_URL + '?type=plan');
+    const res = await fetch(SHEET_URL + '?type=plan&user=' + encodeURIComponent(currentUser));
     if (!res.ok) throw new Error('resposta não ok');
     return await res.json(); // array de exercícios, ou null se nunca salvo
   } catch (err) {
@@ -447,7 +551,7 @@ async function sendPlanToSheet(list) {
     await fetch(SHEET_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ type: 'plan', exercises: list })
+      body: JSON.stringify({ type: 'plan', user: currentUser, exercises: list })
     });
   } catch (err) {
     console.error('Falha ao enviar plano pra planilha:', err);
@@ -471,8 +575,6 @@ let checks = {};
 let cardio = { warmup: false, cooldown: false };
 let lastWeights = {};
 
-document.getElementById('today').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-
 function renderCardio() {
   document.getElementById('warmupCheck').classList.toggle('done', !!cardio.warmup);
   document.getElementById('cooldownCheck').classList.toggle('done', !!cardio.cooldown);
@@ -481,7 +583,7 @@ function renderCardio() {
 async function toggleCardio(which) {
   cardio[which] = !cardio[which];
   renderCardio();
-  await storage.set('cardio', cardio);
+  await storage.set('cardio_' + currentUser, cardio);
 }
 
 function renderList() {
@@ -565,16 +667,16 @@ async function updateWeight(id, val) {
   sendPlanToSheet(exercises); // sincroniza com outros aparelhos
 }
 
-async function persistExercises() { await storage.set('exercisesFlat', exercises); }
-async function persistChecks() { await storage.set('checksFlat', checks); }
-async function persistLastWeights() { await storage.set('lastWeightsFlat', lastWeights); }
+async function persistExercises() { await storage.set('exercisesFlat_' + currentUser, exercises); }
+async function persistChecks() { await storage.set('checksFlat_' + currentUser, checks); }
+async function persistLastWeights() { await storage.set('lastWeightsFlat_' + currentUser, lastWeights); }
 
 async function finishSession() {
   if (!exercises.length) return;
   exercises.forEach(ex => { lastWeights[ex.id] = ex.weight; });
   await persistLastWeights();
 
-  const history = (await storage.get('historyFlat')) || [];
+  const history = (await storage.get('historyFlat_' + currentUser)) || [];
   const newSession = {
     date: new Date().toISOString(),
     warmup: !!cardio.warmup,
@@ -591,14 +693,14 @@ async function finishSession() {
     })
   };
   history.push(newSession);
-  await storage.set('historyFlat', history);
+  await storage.set('historyFlat_' + currentUser, history);
   sendSessionToSheet(newSession); // envia em segundo plano, não bloqueia a UI
 
   // reset checks e cardio para a próxima vez
   exercises.forEach(ex => { checks[ex.id] = Array(ex.sets).fill(false); });
   cardio = { warmup: false, cooldown: false };
   await persistChecks();
-  await storage.set('cardio', cardio);
+  await storage.set('cardio_' + currentUser, cardio);
   renderList();
   renderCardio();
   showToast('Treino salvo');
@@ -664,11 +766,11 @@ function resetTimer() {
 }
 updateTimerDisplay();
 
-// ---- init ----
-(async function init() {
-  const savedChecks = await storage.get('checksFlat');
-  const savedLW = await storage.get('lastWeightsFlat');
-  const savedCardio = await storage.get('cardio');
+// ---- carregar dados do usuário selecionado ----
+async function loadUserData() {
+  const savedChecks = await storage.get('checksFlat_' + currentUser);
+  const savedLW = await storage.get('lastWeightsFlat_' + currentUser);
+  const savedCardio = await storage.get('cardio_' + currentUser);
 
   // tenta buscar o plano (lista de exercícios + pesos) da planilha primeiro
   const remotePlan = await fetchPlanFromSheet();
@@ -676,7 +778,7 @@ updateTimerDisplay();
     exercises = remotePlan;
     await persistExercises(); // guarda cópia local como cache
   } else {
-    const savedEx = await storage.get('exercisesFlat');
+    const savedEx = await storage.get('exercisesFlat_' + currentUser);
     if (savedEx && savedEx.length) {
       exercises = savedEx;
     } else {
@@ -686,12 +788,24 @@ updateTimerDisplay();
     }
   }
 
-  if (savedChecks) checks = savedChecks;
-  if (savedLW) lastWeights = savedLW;
-  if (savedCardio) cardio = savedCardio;
+  checks = savedChecks || {};
+  lastWeights = savedLW || {};
+  cardio = savedCardio || { warmup: false, cooldown: false };
 
   renderList();
   renderCardio();
+}
+
+// ---- init ----
+(async function init() {
+  document.getElementById('today').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  if (currentUser) {
+    document.getElementById('currentUserLabel').textContent = 'Trocar usuário (' + currentUser + ')';
+    document.getElementById('userScreen').classList.add('hidden');
+    await loadUserData();
+  } else {
+    await showUserScreen();
+  }
 })();
 </script>
 </body>
