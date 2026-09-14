@@ -219,6 +219,12 @@ button.ghost:hover { border-color: var(--chalk-dim); }
 .hist-ex-name { color: var(--chalk); }
 .hist-ex-detail { color: var(--chalk-dim); font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 .hist-cardio { font-size: 12px; color: var(--teal); margin-bottom: 8px; }
+.hist-delete {
+  width: 100%; margin-top: 10px; background: transparent;
+  border: 1px solid var(--red); color: var(--red);
+  border-radius: 8px; padding: 9px; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.hist-delete:hover { background: var(--red); color: #fff; }
 .user-screen {
   position: fixed; inset: 0; background: var(--bg);
   display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -498,6 +504,7 @@ async function openHistory() {
               <span class="hist-ex-detail">${e.weight}kg · ${e.setsCompleted}/${e.sets}x${e.reps}</span>
             </div>
           `).join('')}
+          <button class="hist-delete" onclick="event.stopPropagation(); deleteHistorySession('${session.date}')">Excluir este treino</button>
         </div>
       `;
       container.appendChild(item);
@@ -507,6 +514,29 @@ async function openHistory() {
 }
 function closeHistory() {
   document.getElementById('historyModal').classList.remove('open');
+}
+
+async function deleteHistorySession(dateIso) {
+  if (!confirm('Tem certeza que quer excluir esse treino? Essa ação não pode ser desfeita.')) return;
+
+  // remove da planilha
+  try {
+    await fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'delete', user: currentUser, date: dateIso })
+    });
+  } catch (err) {
+    console.error('Falha ao excluir treino da planilha:', err);
+  }
+
+  // remove do backup local também
+  const local = (await storage.get('historyFlat_' + currentUser)) || [];
+  const filtered = local.filter(s => s.date !== dateIso);
+  await storage.set('historyFlat_' + currentUser, filtered);
+
+  showToast('Treino excluído');
+  openHistory(); // recarrega a lista atualizada
 }
 
 // ---- Sincronização com Google Sheets ----
