@@ -467,7 +467,7 @@ const PHOTOS = {
   'Tríceps francês com halter': 'halter.jpg',
   'Cadeira flexora': 'cadeira-flexora.jpg',
   'Supino na máquina': 'supino-maquina.jpg',
-  'Remada sentada no cabo': 'remada-sentada.jpg',
+  'Remada': 'remada-sentada.jpg',
   'Ponte de glúteo com barra': 'ponte-gluteo.jpg',
   'Cadeira extensora': 'cadeira-extensora.jpg',
   'Panturrilha em pé com halteres': 'halter.jpg',
@@ -639,7 +639,7 @@ function buildPlan2Defaults() {
     mk('p2-extensora', 'Cadeira extensora', 3, 12, 35),
     mk('p2-flexora', 'Cadeira flexora', 3, 12, 30),
     mk('p2-supino', 'Supino na máquina', 3, 10, 45),
-    mk('p2-remada', 'Remada sentada no cabo', 3, 10, 45),
+    mk('p2-remada', 'Remada', 3, 10, 45),
     mk('p2-desenvolvimento', 'Desenvolvimento com halteres', 3, 10, 9),
     mk('p2-ponte', 'Ponte de glúteo com barra', 3, 12, 25),
     mk('p2-martelo', 'Rosca martelo', 3, 12, 9),
@@ -929,6 +929,12 @@ async function loadUserData() {
     plan2cache = savedP2;
   } else {
     plan2cache = buildPlan2Defaults();
+    await storage.set('exercisesFlat2_' + currentUser, plan2cache);
+  }
+  // Renomeia 'Remada sentada no cabo' para 'Remada' (pedido do José, 11/11).
+  const rem = plan2cache.find(e => e.id === 'p2-remada');
+  if (rem && rem.name !== 'Remada') {
+    rem.name = 'Remada';
     await storage.set('exercisesFlat2_' + currentUser, plan2cache);
   }
   const savedPlan = await storage.get('activePlanFlat_' + currentUser);
