@@ -399,7 +399,7 @@ async function fetchUsersFromSheet() {
     return await res.json();
   } catch (err) {
     console.error('Falha ao buscar usuários da planilha:', err);
-    return ['Daniel', 'Lais', 'Leandro', 'Paula']; // fallback offline
+    return ['Daniel', 'Leandro']; // fallback offline
   }
 }
 
@@ -417,9 +417,11 @@ async function addUserToSheet(name) {
 
 async function showUserScreen() {
   const users = await fetchUsersFromSheet();
+  // Lais e Paula removidas a pedido do José (11/11/2026)
+  const visibleUsers = users.filter(name => name !== 'Lais' && name !== 'Paula');
   const list = document.getElementById('userList');
   list.innerHTML = '';
-  users.forEach(name => {
+  visibleUsers.forEach(name => {
     const btn = document.createElement('button');
     btn.className = 'user-pick';
     btn.textContent = name;
@@ -465,6 +467,9 @@ const PHOTOS = {
   'Supino na máquina': 'supino-maquina.jpg',
   'Remada sentada no cabo': 'remada-sentada.jpg',
   'Ponte de glúteo com barra': 'ponte-gluteo.jpg',
+  'Cadeira extensora': 'cadeira-extensora.jpg',
+  'Panturrilha em pé com halteres': 'halter.jpg',
+  'Prancha (30 segundos)': 'prancha.jpg',
 };
 
 function openPhoto(name) {
@@ -684,6 +689,14 @@ async function toggleCardio(which) {
   await storage.set('cardio_' + currentUser, cardio);
 }
 
+// Uma caixinha só por exercício (vale pros 2 planos). Aceita o formato antigo
+// (lista de séries) e trata como feito só se todas as séries estavam marcadas.
+function isChecked(id) {
+  const v = checks[id];
+  if (Array.isArray(v)) return v.length > 0 && v.every(Boolean);
+  return !!v;
+}
+
 function renderList() {
   const list = document.getElementById('list');
   list.innerHTML = '';
@@ -695,8 +708,7 @@ function renderList() {
     const card = document.createElement('div');
     card.className = 'card';
     const lw = lastWeights[ex.id];
-    const doneArr = checks[ex.id] || Array(ex.sets).fill(false);
-    checks[ex.id] = doneArr;
+    const done = isChecked(ex.id);
     card.innerHTML = `
       <div class="card-top">
         <div>
@@ -715,17 +727,15 @@ function renderList() {
     `;
     list.appendChild(card);
     const setsWrap = card.querySelector(`#sets-${ex.id}`);
-    doneArr.forEach((done, i) => {
-      const dot = document.createElement('div');
-      dot.className = 'set-dot' + (done ? ' done' : '');
-      dot.textContent = i + 1;
-      dot.onclick = () => {
-        doneArr[i] = !doneArr[i];
-        renderList();
-        persistChecks();
-      };
-      setsWrap.appendChild(dot);
-    });
+    const dot = document.createElement('div');
+    dot.className = 'set-dot' + (done ? ' done' : '');
+    dot.textContent = done ? '✓' : '';
+    dot.onclick = () => {
+      checks[ex.id] = !isChecked(ex.id);
+      renderList();
+      persistChecks();
+    };
+    setsWrap.appendChild(dot);
   });
 }
 
@@ -741,7 +751,7 @@ async function addExercise() {
   if (!name) return;
   const id = uid();
   exercises.push({ id, name, sets, reps, weight });
-  checks[id] = Array(sets).fill(false);
+  checks[id] = false;
   document.getElementById('fName').value = '';
   toggleForm(false);
   await persistExercises();
@@ -783,13 +793,12 @@ async function finishSession() {
     warmup: !!cardio.warmup,
     cooldown: !!cardio.cooldown,
     exercises: exercises.map(ex => {
-      const doneArr = checks[ex.id] || [];
       return {
         name: ex.name,
         sets: ex.sets,
         reps: ex.reps,
         weight: ex.weight,
-        setsCompleted: doneArr.filter(Boolean).length
+        setsCompleted: isChecked(ex.id) ? ex.sets : 0
       };
     })
   };
@@ -798,7 +807,7 @@ async function finishSession() {
   sendSessionToSheet(newSession); // envia em segundo plano, não bloqueia a UI
 
   // reset checks e cardio para a próxima vez
-  exercises.forEach(ex => { checks[ex.id] = Array(ex.sets).fill(false); });
+  exercises.forEach(ex => { checks[ex.id] = false; });
   cardio = { warmup: false, cooldown: false };
   await persistChecks();
   await storage.set('cardio_' + currentUser, cardio);
