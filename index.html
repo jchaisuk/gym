@@ -53,6 +53,7 @@ h1 {
   padding: 10px; border-radius: 8px; cursor: pointer;
 }
 .plan-btn.active { background: var(--red); color: #fff; }
+.plan-btn:disabled { opacity: .45; cursor: default; }
 .card {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -290,8 +291,8 @@ button.ghost:hover { border-color: var(--chalk-dim); }
   <div class="split-note" id="planNote">Mesmo treino de força todos os dias, com esteira no aquecimento e no final.</div>
 
   <div class="plan-switch">
-    <button class="plan-btn active" id="plan1Btn" onclick="switchPlan('plan1')">Plano 1</button>
-    <button class="plan-btn" id="plan2Btn" onclick="switchPlan('plan2')">Plano 2</button>
+    <button class="plan-btn active" id="plan1Btn" onclick="switchPlan('plan1')" disabled>Plano 1</button>
+    <button class="plan-btn" id="plan2Btn" onclick="switchPlan('plan2')" disabled>Plano 2</button>
   </div>
 
   <div class="cardio-card">
@@ -376,7 +377,8 @@ const storage = {
       catch (e) { return null; }
     }
     const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : null;
+    try { return v ? JSON.parse(v) : null; }
+    catch (e) { return null; }
   },
   async set(key, value) {
     if (window.storage) {
@@ -652,8 +654,14 @@ function buildPlan2Defaults() {
 let activePlan = 'plan1';
 let plan1cache = null;
 let plan2cache = null;
+let dataReady = false; // a troca de plano só vale depois que os dados terminam de carregar
+
+// Nomes dos exercícios do Plano 1 — usados para detectar um Plano 2 salvo errado.
+const PLAN1_NAMES = ['Back Extension (lombar)', 'Dip Machine (tríceps/peito)', 'Lat Pull Down (puxada costas)', 'Tríceps na polia (mesma máquina do Lat Pull Down)', 'Rosca bíceps em pé', 'Leg press 45°', 'Panturrilha', 'Panturrilha sentado'];
 
 function renderPlanSwitch() {
+  document.getElementById('plan1Btn').disabled = false;
+  document.getElementById('plan2Btn').disabled = false;
   document.getElementById('plan1Btn').classList.toggle('active', activePlan === 'plan1');
   document.getElementById('plan2Btn').classList.toggle('active', activePlan === 'plan2');
   document.getElementById('planNote').textContent = activePlan === 'plan2'
@@ -662,13 +670,19 @@ function renderPlanSwitch() {
 }
 
 async function switchPlan(which) {
+  if (!dataReady) return; // ignora o toque enquanto os dados ainda carregam
   if (which === activePlan) return;
   // salva a lista que está na tela no slot dela
   if (activePlan === 'plan2') { plan2cache = exercises; await storage.set('exercisesFlat2_' + currentUser, exercises); }
   else { plan1cache = exercises; await storage.set('exercisesFlat_' + currentUser, exercises); }
   activePlan = which;
   await storage.set('activePlanFlat_' + currentUser, which);
-  exercises = (which === 'plan2') ? plan2cache : plan1cache;
+  if (which === 'plan2') {
+    exercises = (plan2cache && plan2cache.length) ? plan2cache : buildPlan2Defaults();
+    plan2cache = exercises;
+  } else {
+    exercises = (plan1cache && plan1cache.length) ? plan1cache : exercises;
+  }
   renderPlanSwitch();
   renderList();
 }
@@ -700,7 +714,7 @@ function isChecked(id) {
 function renderList() {
   const list = document.getElementById('list');
   list.innerHTML = '';
-  if (!exercises.length) {
+  if (!exercises || !exercises.length) {
     list.innerHTML = '<div class="empty">Nenhum exercício ainda.<br>Adicione o primeiro abaixo.</div>';
     return;
   }
@@ -878,6 +892,9 @@ updateTimerDisplay();
 
 // ---- carregar dados do usuário selecionado ----
 async function loadUserData() {
+  dataReady = false;
+  document.getElementById('plan1Btn').disabled = true;
+  document.getElementById('plan2Btn').disabled = true;
   const savedChecks = await storage.get('checksFlat_' + currentUser);
   const savedLW = await storage.get('lastWeightsFlat_' + currentUser);
   const savedCardio = await storage.get('cardio_' + currentUser);
@@ -906,7 +923,9 @@ async function loadUserData() {
 
   // Plano 2: só local, não sincroniza com a planilha
   const savedP2 = await storage.get('exercisesFlat2_' + currentUser);
-  if (savedP2 && savedP2.length) {
+  // Se o Plano 2 salvo for na verdade a lista do Plano 1 (um toque durante o
+  // carregamento, numa versão anterior, salvou errado), descarta e recria o Plano 2.
+  if (savedP2 && savedP2.length && !savedP2.some(e => PLAN1_NAMES.includes(e.name))) {
     plan2cache = savedP2;
   } else {
     plan2cache = buildPlan2Defaults();
@@ -918,6 +937,7 @@ async function loadUserData() {
     exercises = plan2cache;
   }
 
+  dataReady = true;
   renderPlanSwitch();
   renderList();
   renderCardio();
